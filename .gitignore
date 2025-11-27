@@ -45,3 +45,7 @@ Thumbs.db
 # ngrok
 ngrok.exe
 
+# Load curve data files (too large for git)
+src/data/*.csv
+*.zip
+

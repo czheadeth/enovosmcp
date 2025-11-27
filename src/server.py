@@ -1,6 +1,13 @@
 """
-Enovos MCP Server - Provides tools for customer consumption and contract data
+Enovos MCP Server - Load Curve Consumption Data
+Provides tools to query customer energy consumption from CSV files.
 """
+import os
+import csv
+from datetime import datetime, timedelta
+from pathlib import Path
+from collections import defaultdict
+
 from mcp.server.fastmcp import FastMCP
 from starlette.applications import Starlette
 from starlette.routing import Mount, Route
@@ -9,21 +16,53 @@ from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 import uvicorn
 
-from src.data.mock_data import (
-    get_consumption_by_customer_id,
-    get_contract_by_customer_id,
-    get_customer_by_id,
-    MOCK_CUSTOMERS
-)
-
 # Create the MCP server
 mcp = FastMCP("enovos")
+
+# Path to data files
+DATA_DIR = Path(__file__).parent / "data"
+
+
+def get_csv_path(customer_id: str) -> Path:
+    """Get the CSV file path for a customer ID."""
+    # Pad customer_id to 5 digits
+    padded_id = customer_id.zfill(5)
+    filename = f"LU_ENO_DELPHI_LU_virtual_ind_{padded_id}.csv"
+    return DATA_DIR / filename
+
+
+def load_csv_data(customer_id: str, date_from: str, date_to: str) -> list:
+    """Load CSV data for a customer within a date range."""
+    csv_path = get_csv_path(customer_id)
+    
+    if not csv_path.exists():
+        return None
+    
+    # Parse dates
+    try:
+        start_date = datetime.strptime(date_from, "%Y-%m-%d")
+        end_date = datetime.strptime(date_to, "%Y-%m-%d") + timedelta(days=1)  # Include end date
+    except ValueError:
+        return "invalid_date_format"
+    
+    data = []
+    with open(csv_path, 'r') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            ts = datetime.strptime(row['timestamp'], "%Y-%m-%d %H:%M:%S")
+            if start_date <= ts < end_date:
+                data.append({
+                    "timestamp": row['timestamp'],
+                    "value_kwh": float(row['value'])
+                })
+    
+    return data
 
 
 # Health check endpoint
 async def health(request):
     return JSONResponse(
-        {"status": "ok", "server": "enovos-mcp"},
+        {"status": "ok", "server": "enovos-mcp", "version": "2.0"},
         headers={
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "*",
@@ -33,93 +72,214 @@ async def health(request):
 
 
 @mcp.tool(annotations={"readOnlyHint": True})
-def get_customer_consumption(customer_id: str = "C001") -> dict:
+def get_consumption_hourly(customer_id: str, date_from: str, date_to: str) -> dict:
     """
     UTILISE CET OUTIL quand l'utilisateur demande:
-    - sa consommation d'énergie, d'électricité ou de gaz
-    - combien il a consommé
-    - sa facture énergétique
-    - ses kWh
-    - le coût de son énergie
+    - consommation détaillée heure par heure
+    - analyse d'une journée spécifique
+    - pic de consommation
+    - consommation pendant certaines heures
+    - données fines sur une courte période
     
-    Retourne la consommation électricité/gaz en kWh et les coûts en EUR.
-    Par défaut utilise le client C001.
+    Retourne les points de consommation toutes les 15 minutes.
     
     Args:
-        customer_id: Identifiant client (défaut: C001)
-    """
-    consumption = get_consumption_by_customer_id(customer_id)
+        customer_id: Identifiant client (ex: "00001", "00042", "00088")
+        date_from: Date de début au format YYYY-MM-DD (ex: "2023-01-15")
+        date_to: Date de fin au format YYYY-MM-DD (ex: "2023-01-17")
     
-    if consumption is None:
+    Returns:
+        Liste des points de consommation avec timestamp et valeur en kWh.
+        ATTENTION: Maximum 7 jours pour éviter trop de données.
+    """
+    # Validate date range (max 7 days)
+    try:
+        start = datetime.strptime(date_from, "%Y-%m-%d")
+        end = datetime.strptime(date_to, "%Y-%m-%d")
+        if (end - start).days > 7:
+            return {
+                "error": "Plage de dates trop grande. Maximum 7 jours pour les données horaires.",
+                "suggestion": "Utilisez get_consumption_daily pour des périodes plus longues."
+            }
+    except ValueError:
+        return {"error": "Format de date invalide. Utilisez YYYY-MM-DD (ex: 2023-01-15)"}
+    
+    data = load_csv_data(customer_id, date_from, date_to)
+    
+    if data is None:
         return {
-            "error": f"Client {customer_id} non trouvé",
-            "customer_id": customer_id,
-            "available_customers": list(MOCK_CUSTOMERS.keys())
+            "error": f"Client {customer_id} non trouvé.",
+            "hint": "L'identifiant client doit être un nombre entre 00001 et 00088"
         }
     
-    return consumption
+    if data == "invalid_date_format":
+        return {"error": "Format de date invalide. Utilisez YYYY-MM-DD (ex: 2023-01-15)"}
+    
+    if not data:
+        return {
+            "error": "Aucune donnée pour cette période.",
+            "hint": "Les données disponibles vont de 2022-01-01 à 2023-12-31"
+        }
+    
+    total_kwh = sum(d['value_kwh'] for d in data)
+    
+    return {
+        "customer_id": customer_id,
+        "period": {"from": date_from, "to": date_to},
+        "granularity": "15 minutes",
+        "total_kwh": round(total_kwh, 2),
+        "data_points": len(data),
+        "consumption": data
+    }
 
 
 @mcp.tool(annotations={"readOnlyHint": True})
-def get_customer_contract(customer_id: str = "C001") -> dict:
+def get_consumption_daily(customer_id: str, date_from: str, date_to: str) -> dict:
     """
     UTILISE CET OUTIL quand l'utilisateur demande:
-    - son contrat d'énergie
-    - son abonnement Enovos
-    - son tarif électricité/gaz
-    - les détails de son offre
-    - la date de fin de contrat
+    - consommation par jour
+    - consommation d'une semaine
+    - consommation d'un mois spécifique
+    - comparaison entre jours
+    - évolution quotidienne
     
-    Retourne le type de contrat, tarif, dates et services inclus.
-    Par défaut utilise le client C001.
+    Retourne la consommation totale par jour (agrégation des 15 minutes).
     
     Args:
-        customer_id: Identifiant client (défaut: C001)
-    """
-    contract = get_contract_by_customer_id(customer_id)
+        customer_id: Identifiant client (ex: "00001", "00042", "00088")
+        date_from: Date de début au format YYYY-MM-DD (ex: "2023-01-01")
+        date_to: Date de fin au format YYYY-MM-DD (ex: "2023-01-31")
     
-    if contract is None:
+    Returns:
+        Liste de la consommation quotidienne en kWh.
+        ATTENTION: Maximum 90 jours par requête.
+    """
+    # Validate date range (max 90 days)
+    try:
+        start = datetime.strptime(date_from, "%Y-%m-%d")
+        end = datetime.strptime(date_to, "%Y-%m-%d")
+        if (end - start).days > 90:
+            return {
+                "error": "Plage de dates trop grande. Maximum 90 jours pour les données journalières.",
+                "suggestion": "Utilisez get_consumption_monthly pour des périodes plus longues."
+            }
+    except ValueError:
+        return {"error": "Format de date invalide. Utilisez YYYY-MM-DD (ex: 2023-01-15)"}
+    
+    data = load_csv_data(customer_id, date_from, date_to)
+    
+    if data is None:
         return {
-            "error": f"Contrat pour le client {customer_id} non trouvé",
-            "customer_id": customer_id,
-            "available_customers": list(MOCK_CUSTOMERS.keys())
+            "error": f"Client {customer_id} non trouvé.",
+            "hint": "L'identifiant client doit être un nombre entre 00001 et 00088"
         }
     
-    return contract
+    if data == "invalid_date_format":
+        return {"error": "Format de date invalide. Utilisez YYYY-MM-DD (ex: 2023-01-15)"}
+    
+    if not data:
+        return {
+            "error": "Aucune donnée pour cette période.",
+            "hint": "Les données disponibles vont de 2022-01-01 à 2023-12-31"
+        }
+    
+    # Aggregate by day
+    daily = defaultdict(float)
+    for d in data:
+        date = d['timestamp'].split(' ')[0]
+        daily[date] += d['value_kwh']
+    
+    daily_data = [{"date": k, "kwh": round(v, 2)} for k, v in sorted(daily.items())]
+    total_kwh = sum(d['kwh'] for d in daily_data)
+    avg_daily = total_kwh / len(daily_data) if daily_data else 0
+    
+    return {
+        "customer_id": customer_id,
+        "period": {"from": date_from, "to": date_to},
+        "granularity": "daily",
+        "total_kwh": round(total_kwh, 2),
+        "average_daily_kwh": round(avg_daily, 2),
+        "days_count": len(daily_data),
+        "consumption": daily_data
+    }
 
 
 @mcp.tool(annotations={"readOnlyHint": True})
-def get_customer_info(customer_id: str = "C001") -> dict:
+def get_consumption_monthly(customer_id: str, date_from: str, date_to: str) -> dict:
     """
     UTILISE CET OUTIL quand l'utilisateur demande:
-    - ses informations personnelles
-    - son profil client
-    - son adresse
-    - ses coordonnées
+    - consommation mensuelle
+    - consommation sur une année
+    - tendance sur plusieurs mois
+    - comparaison entre mois
+    - évolution annuelle
     
-    Retourne nom, adresse et email du client.
-    Par défaut utilise le client C001.
+    Retourne la consommation totale par mois.
     
     Args:
-        customer_id: Identifiant client (défaut: C001)
-    """
-    customer = get_customer_by_id(customer_id)
+        customer_id: Identifiant client (ex: "00001", "00042", "00088")
+        date_from: Mois de début au format YYYY-MM (ex: "2023-01")
+        date_to: Mois de fin au format YYYY-MM (ex: "2023-12")
     
-    if customer is None:
+    Returns:
+        Liste de la consommation mensuelle en kWh.
+    """
+    # Parse monthly dates
+    try:
+        start = datetime.strptime(date_from + "-01", "%Y-%m-%d")
+        end_month = datetime.strptime(date_to + "-01", "%Y-%m-%d")
+        # Get last day of end month
+        if end_month.month == 12:
+            end = datetime(end_month.year + 1, 1, 1) - timedelta(days=1)
+        else:
+            end = datetime(end_month.year, end_month.month + 1, 1) - timedelta(days=1)
+    except ValueError:
+        return {"error": "Format de date invalide. Utilisez YYYY-MM (ex: 2023-01)"}
+    
+    # Load data for the full period
+    data = load_csv_data(customer_id, start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"))
+    
+    if data is None:
         return {
-            "error": f"Client {customer_id} non trouvé",
-            "customer_id": customer_id,
-            "available_customers": list(MOCK_CUSTOMERS.keys())
+            "error": f"Client {customer_id} non trouvé.",
+            "hint": "L'identifiant client doit être un nombre entre 00001 et 00088"
         }
     
-    return customer
+    if data == "invalid_date_format":
+        return {"error": "Format de date invalide. Utilisez YYYY-MM (ex: 2023-01)"}
+    
+    if not data:
+        return {
+            "error": "Aucune donnée pour cette période.",
+            "hint": "Les données disponibles vont de 2022-01 à 2023-12"
+        }
+    
+    # Aggregate by month
+    monthly = defaultdict(float)
+    for d in data:
+        month = d['timestamp'][:7]  # YYYY-MM
+        monthly[month] += d['value_kwh']
+    
+    monthly_data = [{"month": k, "kwh": round(v, 2)} for k, v in sorted(monthly.items())]
+    total_kwh = sum(d['kwh'] for d in monthly_data)
+    avg_monthly = total_kwh / len(monthly_data) if monthly_data else 0
+    
+    return {
+        "customer_id": customer_id,
+        "period": {"from": date_from, "to": date_to},
+        "granularity": "monthly",
+        "total_kwh": round(total_kwh, 2),
+        "average_monthly_kwh": round(avg_monthly, 2),
+        "months_count": len(monthly_data),
+        "consumption": monthly_data
+    }
 
 
 if __name__ == "__main__":
-    # Crée l'app Starlette avec le SSE MCP et un health check
+    # Create the Starlette app with SSE MCP and health check
     sse_app = mcp.sse_app()
     
-    # Middleware CORS
+    # CORS Middleware
     middleware = [
         Middleware(
             CORSMiddleware,
@@ -139,7 +299,17 @@ if __name__ == "__main__":
         middleware=middleware,
     )
     
-    print("Starting Enovos MCP Server on http://0.0.0.0:8000")
-    print("Endpoints: / (health), /mcp/sse (MCP SSE)")
+    print("=" * 60)
+    print("Enovos MCP Server v2.0 - Load Curve Data")
+    print("=" * 60)
+    print("Endpoints:")
+    print("  - Health: http://0.0.0.0:8000/")
+    print("  - MCP SSE: http://0.0.0.0:8000/mcp/sse")
+    print("")
+    print("Tools disponibles:")
+    print("  - get_consumption_hourly(customer_id, date_from, date_to)")
+    print("  - get_consumption_daily(customer_id, date_from, date_to)")
+    print("  - get_consumption_monthly(customer_id, date_from, date_to)")
+    print("=" * 60)
+    
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info", proxy_headers=True, forwarded_allow_ips="*")
-
