@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+.git/
+.gitignore
+*.md
+.env
+.env.local
+*.log
+ngrok.exe
+

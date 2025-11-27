@@ -115,25 +115,6 @@ def get_customer_info(customer_id: str = "C001") -> dict:
     return customer
 
 
-@mcp.tool(annotations={"readOnlyHint": True})
-def list_customers() -> dict:
-    """
-    UTILISE CET OUTIL quand l'utilisateur demande:
-    - la liste des clients
-    - tous les clients
-    - les clients disponibles
-    - qui sont les clients
-    
-    Retourne la liste de tous les clients Enovos avec leurs noms.
-    """
-    return {
-        "customers": [
-            {"customer_id": cid, "name": data["name"]}
-            for cid, data in MOCK_CUSTOMERS.items()
-        ]
-    }
-
-
 if __name__ == "__main__":
     # Crée l'app Starlette avec le SSE MCP et un health check
     sse_app = mcp.sse_app()
