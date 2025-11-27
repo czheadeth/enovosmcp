@@ -4,7 +4,6 @@ Provides tools to query customer energy consumption from CSV files.
 """
 import os
 import csv
-import json
 from datetime import datetime, timedelta
 from pathlib import Path
 from collections import defaultdict
@@ -22,13 +21,6 @@ mcp = FastMCP("enovos")
 
 # Path to data files
 DATA_DIR = Path(__file__).parent / "data"
-CLUSTERS_FILE = Path(__file__).parent / "clusters.json"
-
-# Load clusters data if available
-CLUSTERS_DATA = None
-if CLUSTERS_FILE.exists():
-    with open(CLUSTERS_FILE, 'r') as f:
-        CLUSTERS_DATA = json.load(f)
 
 
 def get_csv_path(customer_id: str) -> Path:
@@ -327,106 +319,70 @@ def get_customer_profile(customer_id: str) -> dict:
     """
     UTILISE CET OUTIL quand l'utilisateur demande:
     - son profil de consommation
-    - à quel groupe il appartient
     - son type de consommateur
     - analyse de son comportement énergétique
+    - sa saisonnalité (hiver vs été)
     
-    Retourne le profil horaire moyen (24h), le ratio saisonnalité hiver/été,
-    et le cluster auquel appartient le client.
+    Retourne le profil horaire moyen (24h) et le ratio saisonnalité hiver/été.
     
-    Un ratio_winter_summer > 2 indique chauffage électrique (PAC).
-    Un ratio < 0.7 indique climatisation.
-    Le profil horaire montre les pics de consommation.
+    Interprétation du ratio_winter_summer:
+    - > 2.0 = chauffage électrique probable (PAC)
+    - < 0.7 = climatisation probable
+    - ~1.0 = consommation stable toute l'année
     
     Args:
         customer_id: Identifiant client (ex: "00001", "00042")
     
     Returns:
-        Profil avec: cluster_id, hourly_profile (24 valeurs 0-23h), 
-        ratio_winter_summer, total_kwh_year
+        Format compact: customer_id, hourly_profile (24 valeurs), ratio_winter_summer
     """
-    if CLUSTERS_DATA is None:
+    csv_path = get_csv_path(customer_id)
+    
+    if not csv_path.exists():
         return {
-            "error": "Données de clustering non disponibles.",
-            "hint": "Exécutez d'abord: python -m src.clustering --clusters 5"
+            "error": f"Client {customer_id} non trouvé.",
+            "hint": "L'identifiant client doit être un nombre entre 00001 et 09831"
         }
     
-    # Pad customer_id
-    padded_id = customer_id.zfill(5)
+    # Read CSV and compute profile
+    hourly_values = defaultdict(list)  # {0: [...], 1: [...], ..., 23: [...]}
+    monthly_values = defaultdict(list)  # {1: [...], ..., 12: [...]}
+    total_kwh = 0
     
-    # Get customer's cluster
-    customer_clusters = CLUSTERS_DATA.get('customer_clusters', {})
-    cluster_id = customer_clusters.get(padded_id)
+    with open(csv_path, 'r') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            # Use string slicing (fast) instead of datetime parsing
+            hour = int(row['timestamp'][11:13])  # "2023-01-15 14:30:00" → 14
+            month = int(row['timestamp'][5:7])   # "2023-01-15 14:30:00" → 1
+            value = float(row['value'])
+            
+            hourly_values[hour].append(value)
+            monthly_values[month].append(value)
+            total_kwh += value
     
-    if cluster_id is None:
-        return {
-            "error": f"Client {customer_id} non trouvé dans les clusters.",
-            "hint": "Vérifiez l'identifiant ou relancez le clustering."
-        }
+    # Compute hourly profile (24 values)
+    hourly_profile = [
+        round(sum(hourly_values[h]) / len(hourly_values[h]), 2) if hourly_values[h] else 0
+        for h in range(24)
+    ]
     
-    # Get cluster info
-    cluster_def = CLUSTERS_DATA['cluster_definitions'].get(str(cluster_id), {})
+    # Compute seasonality ratio
+    winter_months = [11, 12, 1, 2]
+    summer_months = [6, 7, 8]
+    
+    winter_vals = [v for m in winter_months for v in monthly_values.get(m, [])]
+    summer_vals = [v for m in summer_months for v in monthly_values.get(m, [])]
+    
+    winter_avg = sum(winter_vals) / len(winter_vals) if winter_vals else 1
+    summer_avg = sum(summer_vals) / len(summer_vals) if summer_vals else 1
+    ratio = round(winter_avg / summer_avg, 2) if summer_avg > 0 else 1.0
     
     return {
-        "customer_id": padded_id,
-        "cluster_id": cluster_id,
-        "cluster_size": cluster_def.get('count', 0),
-        "cluster_percent": round(cluster_def.get('count', 0) / CLUSTERS_DATA['metadata']['n_customers'] * 100, 1),
-        "hourly_profile": cluster_def.get('centroid', []),
-        "ratio_winter_summer": cluster_def.get('avg_ratio_winter_summer', 1.0),
-        "interpretation": {
-            "high_ratio": "Ratio > 2 = chauffage électrique probable (PAC)",
-            "low_ratio": "Ratio < 0.7 = climatisation probable",
-            "night_peak": "Pic nocturne (22h-6h) = charge VE probable"
-        }
-    }
-
-
-@mcp.tool(annotations={"readOnlyHint": True})
-def get_cluster_profiles() -> dict:
-    """
-    UTILISE CET OUTIL quand l'utilisateur demande:
-    - les différents profils types de clients
-    - combien de groupes de consommateurs existent
-    - les comportements typiques des clients Enovos
-    - une vue d'ensemble des patterns de consommation
-    
-    Retourne tous les clusters avec leur profil horaire moyen (24h),
-    le nombre de clients, et le ratio saisonnalité moyen.
-    
-    Permet de comparer différents groupes de clients et comprendre
-    les patterns de consommation typiques.
-    
-    Returns:
-        Liste des clusters avec: id, count, percent, centroid (24h), 
-        avg_ratio_winter_summer
-    """
-    if CLUSTERS_DATA is None:
-        return {
-            "error": "Données de clustering non disponibles.",
-            "hint": "Exécutez d'abord: python -m src.clustering --clusters 5"
-        }
-    
-    n_customers = CLUSTERS_DATA['metadata']['n_customers']
-    
-    clusters = []
-    for cluster_id, info in sorted(CLUSTERS_DATA['cluster_definitions'].items()):
-        clusters.append({
-            "id": int(cluster_id),
-            "count": info.get('count', 0),
-            "percent": round(info.get('count', 0) / n_customers * 100, 1),
-            "hourly_profile": info.get('centroid', []),
-            "ratio_winter_summer": info.get('avg_ratio_winter_summer', 1.0)
-        })
-    
-    return {
-        "n_clusters": CLUSTERS_DATA['metadata']['n_clusters'],
-        "n_customers_total": n_customers,
-        "clusters": clusters,
-        "interpretation": {
-            "hourly_profile": "24 valeurs = consommation moyenne par heure (0h à 23h)",
-            "ratio_winter_summer": ">2 = chauffage électrique, <0.7 = climatisation, ~1 = stable"
-        }
+        "customer_id": customer_id.zfill(5),
+        "hourly_profile": hourly_profile,
+        "ratio_winter_summer": ratio,
+        "total_kwh": round(total_kwh, 0)
     }
 
 
@@ -467,12 +423,7 @@ if __name__ == "__main__":
     print("  - get_consumption_monthly(customer_id, date_from, date_to)")
     print("")
     print("Tools profils:")
-    print("  - get_customer_profile(customer_id)")
-    print("  - get_cluster_profiles()")
-    if CLUSTERS_DATA:
-        print(f"  ✅ Clusters chargés: {CLUSTERS_DATA['metadata']['n_clusters']} clusters, {CLUSTERS_DATA['metadata']['n_customers']} clients")
-    else:
-        print("  ⚠️  Pas de clusters.json - lancez: python -m src.clustering --clusters 5")
+    print("  - get_customer_profile(customer_id) → profil 24h + saisonnalité")
     print("=" * 60)
     
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info", proxy_headers=True, forwarded_allow_ips="*")
