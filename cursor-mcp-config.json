@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "enovos": {
+      "command": "python",
+      "args": ["src/server.py"],
+      "cwd": "C:\\Users\\User\\Documents\\projects\\enovosmcp"
+    }
+  }
+}
+
