@@ -81,7 +81,7 @@ def get_consumption_hourly(customer_id: str, date_from: str, date_to: str) -> di
     - consommation pendant certaines heures
     - données fines sur une courte période
     
-    Retourne les points de consommation toutes les 15 minutes.
+    Retourne la consommation moyenne par heure en kWh.
     
     Args:
         customer_id: Identifiant client (ex: "00001", "00042", "00088")
@@ -89,7 +89,7 @@ def get_consumption_hourly(customer_id: str, date_from: str, date_to: str) -> di
         date_to: Date de fin au format YYYY-MM-DD (ex: "2023-01-17")
     
     Returns:
-        Liste des points de consommation avec timestamp et valeur en kWh.
+        Liste de la consommation horaire en kWh.
         ATTENTION: Maximum 7 jours pour éviter trop de données.
     """
     # Validate date range (max 7 days)
@@ -121,15 +121,22 @@ def get_consumption_hourly(customer_id: str, date_from: str, date_to: str) -> di
             "hint": "Les données disponibles vont de 2022-01-01 à 2023-12-31"
         }
     
-    total_kwh = sum(d['value_kwh'] for d in data)
+    # Aggregate by hour (average of 4 x 15min values)
+    hourly = defaultdict(list)
+    for d in data:
+        hour = d['timestamp'][:13] + ":00:00"  # YYYY-MM-DD HH:00:00
+        hourly[hour].append(d['value_kwh'])
+    
+    hourly_data = [{"hour": k, "kwh": round(sum(v) / len(v), 3)} for k, v in sorted(hourly.items())]
+    total_kwh = sum(d['kwh'] for d in hourly_data)
     
     return {
         "customer_id": customer_id,
         "period": {"from": date_from, "to": date_to},
-        "granularity": "15 minutes",
+        "granularity": "hourly",
         "total_kwh": round(total_kwh, 2),
-        "data_points": len(data),
-        "consumption": data
+        "hours_count": len(hourly_data),
+        "consumption": hourly_data
     }
 
 
@@ -143,7 +150,8 @@ def get_consumption_daily(customer_id: str, date_from: str, date_to: str) -> dic
     - comparaison entre jours
     - évolution quotidienne
     
-    Retourne la consommation totale par jour (agrégation des 15 minutes).
+    Retourne la consommation totale par jour en kWh.
+    Calcul: moyenne horaire (4 x 15min) puis somme des 24 heures.
     
     Args:
         customer_id: Identifiant client (ex: "00001", "00042", "00088")
@@ -183,11 +191,19 @@ def get_consumption_daily(customer_id: str, date_from: str, date_to: str) -> dic
             "hint": "Les données disponibles vont de 2022-01-01 à 2023-12-31"
         }
     
-    # Aggregate by day
-    daily = defaultdict(float)
+    # Step 1: Aggregate by hour (average of 4 x 15min values)
+    hourly = defaultdict(list)
     for d in data:
-        date = d['timestamp'].split(' ')[0]
-        daily[date] += d['value_kwh']
+        hour = d['timestamp'][:13]  # YYYY-MM-DD HH
+        hourly[hour].append(d['value_kwh'])
+    
+    hourly_avg = {k: sum(v) / len(v) for k, v in hourly.items()}
+    
+    # Step 2: Sum hourly averages by day
+    daily = defaultdict(float)
+    for hour, avg_kwh in hourly_avg.items():
+        date = hour[:10]  # YYYY-MM-DD
+        daily[date] += avg_kwh
     
     daily_data = [{"date": k, "kwh": round(v, 2)} for k, v in sorted(daily.items())]
     total_kwh = sum(d['kwh'] for d in daily_data)
@@ -214,7 +230,8 @@ def get_consumption_monthly(customer_id: str, date_from: str, date_to: str) -> d
     - comparaison entre mois
     - évolution annuelle
     
-    Retourne la consommation totale par mois.
+    Retourne la consommation totale par mois en kWh.
+    Calcul: moyenne horaire → somme journalière → somme mensuelle.
     
     Args:
         customer_id: Identifiant client (ex: "00001", "00042", "00088")
@@ -254,11 +271,25 @@ def get_consumption_monthly(customer_id: str, date_from: str, date_to: str) -> d
             "hint": "Les données disponibles vont de 2022-01 à 2023-12"
         }
     
-    # Aggregate by month
-    monthly = defaultdict(float)
+    # Step 1: Aggregate by hour (average of 4 x 15min values)
+    hourly = defaultdict(list)
     for d in data:
-        month = d['timestamp'][:7]  # YYYY-MM
-        monthly[month] += d['value_kwh']
+        hour = d['timestamp'][:13]  # YYYY-MM-DD HH
+        hourly[hour].append(d['value_kwh'])
+    
+    hourly_avg = {k: sum(v) / len(v) for k, v in hourly.items()}
+    
+    # Step 2: Sum hourly averages by day
+    daily = defaultdict(float)
+    for hour, avg_kwh in hourly_avg.items():
+        date = hour[:10]  # YYYY-MM-DD
+        daily[date] += avg_kwh
+    
+    # Step 3: Sum daily totals by month
+    monthly = defaultdict(float)
+    for date, daily_kwh in daily.items():
+        month = date[:7]  # YYYY-MM
+        monthly[month] += daily_kwh
     
     monthly_data = [{"month": k, "kwh": round(v, 2)} for k, v in sorted(monthly.items())]
     total_kwh = sum(d['kwh'] for d in monthly_data)
