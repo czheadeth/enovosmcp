@@ -79,19 +79,20 @@ def get_consumption_hourly(customer_id: str, date_from: str, date_to: str) -> di
     - analyse d'une journée spécifique
     - pic de consommation
     - consommation pendant certaines heures
-    - données fines sur une courte période
     
-    Retourne la consommation moyenne par heure en kWh.
-    Format compact: values[0] = première heure (start), values[1] = heure suivante, etc.
+    Retourne la consommation moyenne par heure en kWh (24 valeurs par jour).
+    
+    IMPORTANT: Pour UNE SEULE journée, utilise la MEME date pour date_from et date_to.
+    Exemple: journée du 15 mars → date_from="2023-03-15", date_to="2023-03-15"
     
     Args:
         customer_id: Identifiant client (ex: "00001", "00042", "00088")
-        date_from: Date de début au format YYYY-MM-DD (ex: "2023-01-15")
-        date_to: Date de fin au format YYYY-MM-DD (ex: "2023-01-17")
+        date_from: Date de début YYYY-MM-DD (incluse)
+        date_to: Date de fin YYYY-MM-DD (incluse) - MEME date que date_from pour 1 jour
     
     Returns:
-        Format compact avec granularity, start, end et tableau de valeurs.
-        ATTENTION: Maximum 7 jours pour éviter trop de données.
+        Format compact: granularity, start, end, unit, total, values[]
+        Maximum 7 jours.
     """
     # Validate date range (max 7 days)
     try:
@@ -151,19 +152,21 @@ def get_consumption_daily(customer_id: str, date_from: str, date_to: str) -> dic
     - consommation d'une semaine
     - consommation d'un mois spécifique
     - comparaison entre jours
-    - évolution quotidienne
     
     Retourne la consommation totale par jour en kWh.
-    Format compact: values[0] = premier jour (start), values[1] = jour suivant, etc.
+    
+    IMPORTANT: Les deux dates sont INCLUSIVES.
+    Exemple semaine: date_from="2023-03-01", date_to="2023-03-07" → 7 jours
+    Exemple mois: date_from="2023-03-01", date_to="2023-03-31" → 31 jours
     
     Args:
         customer_id: Identifiant client (ex: "00001", "00042", "00088")
-        date_from: Date de début au format YYYY-MM-DD (ex: "2023-01-01")
-        date_to: Date de fin au format YYYY-MM-DD (ex: "2023-01-31")
+        date_from: Date de début YYYY-MM-DD (incluse)
+        date_to: Date de fin YYYY-MM-DD (incluse)
     
     Returns:
-        Format compact avec granularity, start, end et tableau de valeurs.
-        ATTENTION: Maximum 90 jours par requête.
+        Format compact: granularity, start, end, unit, total, values[]
+        Maximum 90 jours.
     """
     # Validate date range (max 90 days)
     try:
@@ -231,18 +234,20 @@ def get_consumption_monthly(customer_id: str, date_from: str, date_to: str) -> d
     - consommation sur une année
     - tendance sur plusieurs mois
     - comparaison entre mois
-    - évolution annuelle
     
     Retourne la consommation totale par mois en kWh.
-    Format compact: values[0] = premier mois (start), values[1] = mois suivant, etc.
+    
+    IMPORTANT: Les deux mois sont INCLUSIFS.
+    Exemple année: date_from="2023-01", date_to="2023-12" → 12 mois
+    Exemple trimestre: date_from="2023-01", date_to="2023-03" → 3 mois
     
     Args:
         customer_id: Identifiant client (ex: "00001", "00042", "00088")
-        date_from: Mois de début au format YYYY-MM (ex: "2023-01")
-        date_to: Mois de fin au format YYYY-MM (ex: "2023-12")
+        date_from: Mois de début YYYY-MM (inclus)
+        date_to: Mois de fin YYYY-MM (inclus)
     
     Returns:
-        Format compact avec granularity, start, end et tableau de valeurs.
+        Format compact: granularity, start, end, unit, total, values[]
     """
     # Parse monthly dates
     try:
