@@ -82,6 +82,7 @@ def get_consumption_hourly(customer_id: str, date_from: str, date_to: str) -> di
     - données fines sur une courte période
     
     Retourne la consommation moyenne par heure en kWh.
+    Format compact: values[0] = première heure (start), values[1] = heure suivante, etc.
     
     Args:
         customer_id: Identifiant client (ex: "00001", "00042", "00088")
@@ -89,7 +90,7 @@ def get_consumption_hourly(customer_id: str, date_from: str, date_to: str) -> di
         date_to: Date de fin au format YYYY-MM-DD (ex: "2023-01-17")
     
     Returns:
-        Liste de la consommation horaire en kWh.
+        Format compact avec granularity, start, end et tableau de valeurs.
         ATTENTION: Maximum 7 jours pour éviter trop de données.
     """
     # Validate date range (max 7 days)
@@ -124,19 +125,21 @@ def get_consumption_hourly(customer_id: str, date_from: str, date_to: str) -> di
     # Aggregate by hour (average of 4 x 15min values)
     hourly = defaultdict(list)
     for d in data:
-        hour = d['timestamp'][:13] + ":00:00"  # YYYY-MM-DD HH:00:00
+        hour = d['timestamp'][:13]  # YYYY-MM-DD HH
         hourly[hour].append(d['value_kwh'])
     
-    hourly_data = [{"hour": k, "kwh": round(sum(v) / len(v), 3)} for k, v in sorted(hourly.items())]
-    total_kwh = sum(d['kwh'] for d in hourly_data)
+    sorted_hours = sorted(hourly.keys())
+    values = [round(sum(hourly[h]) / len(hourly[h]), 2) for h in sorted_hours]
+    total_kwh = sum(values)
     
     return {
         "customer_id": customer_id,
-        "period": {"from": date_from, "to": date_to},
         "granularity": "hourly",
-        "total_kwh": round(total_kwh, 2),
-        "hours_count": len(hourly_data),
-        "consumption": hourly_data
+        "start": sorted_hours[0] + ":00",
+        "end": sorted_hours[-1] + ":00",
+        "unit": "kwh",
+        "total": round(total_kwh, 2),
+        "values": values
     }
 
 
@@ -151,7 +154,7 @@ def get_consumption_daily(customer_id: str, date_from: str, date_to: str) -> dic
     - évolution quotidienne
     
     Retourne la consommation totale par jour en kWh.
-    Calcul: moyenne horaire (4 x 15min) puis somme des 24 heures.
+    Format compact: values[0] = premier jour (start), values[1] = jour suivant, etc.
     
     Args:
         customer_id: Identifiant client (ex: "00001", "00042", "00088")
@@ -159,7 +162,7 @@ def get_consumption_daily(customer_id: str, date_from: str, date_to: str) -> dic
         date_to: Date de fin au format YYYY-MM-DD (ex: "2023-01-31")
     
     Returns:
-        Liste de la consommation quotidienne en kWh.
+        Format compact avec granularity, start, end et tableau de valeurs.
         ATTENTION: Maximum 90 jours par requête.
     """
     # Validate date range (max 90 days)
@@ -205,18 +208,18 @@ def get_consumption_daily(customer_id: str, date_from: str, date_to: str) -> dic
         date = hour[:10]  # YYYY-MM-DD
         daily[date] += avg_kwh
     
-    daily_data = [{"date": k, "kwh": round(v, 2)} for k, v in sorted(daily.items())]
-    total_kwh = sum(d['kwh'] for d in daily_data)
-    avg_daily = total_kwh / len(daily_data) if daily_data else 0
+    sorted_days = sorted(daily.keys())
+    values = [round(daily[d], 2) for d in sorted_days]
+    total_kwh = sum(values)
     
     return {
         "customer_id": customer_id,
-        "period": {"from": date_from, "to": date_to},
         "granularity": "daily",
-        "total_kwh": round(total_kwh, 2),
-        "average_daily_kwh": round(avg_daily, 2),
-        "days_count": len(daily_data),
-        "consumption": daily_data
+        "start": sorted_days[0],
+        "end": sorted_days[-1],
+        "unit": "kwh",
+        "total": round(total_kwh, 2),
+        "values": values
     }
 
 
@@ -231,7 +234,7 @@ def get_consumption_monthly(customer_id: str, date_from: str, date_to: str) -> d
     - évolution annuelle
     
     Retourne la consommation totale par mois en kWh.
-    Calcul: moyenne horaire → somme journalière → somme mensuelle.
+    Format compact: values[0] = premier mois (start), values[1] = mois suivant, etc.
     
     Args:
         customer_id: Identifiant client (ex: "00001", "00042", "00088")
@@ -239,7 +242,7 @@ def get_consumption_monthly(customer_id: str, date_from: str, date_to: str) -> d
         date_to: Mois de fin au format YYYY-MM (ex: "2023-12")
     
     Returns:
-        Liste de la consommation mensuelle en kWh.
+        Format compact avec granularity, start, end et tableau de valeurs.
     """
     # Parse monthly dates
     try:
@@ -291,18 +294,18 @@ def get_consumption_monthly(customer_id: str, date_from: str, date_to: str) -> d
         month = date[:7]  # YYYY-MM
         monthly[month] += daily_kwh
     
-    monthly_data = [{"month": k, "kwh": round(v, 2)} for k, v in sorted(monthly.items())]
-    total_kwh = sum(d['kwh'] for d in monthly_data)
-    avg_monthly = total_kwh / len(monthly_data) if monthly_data else 0
+    sorted_months = sorted(monthly.keys())
+    values = [round(monthly[m], 2) for m in sorted_months]
+    total_kwh = sum(values)
     
     return {
         "customer_id": customer_id,
-        "period": {"from": date_from, "to": date_to},
         "granularity": "monthly",
-        "total_kwh": round(total_kwh, 2),
-        "average_monthly_kwh": round(avg_monthly, 2),
-        "months_count": len(monthly_data),
-        "consumption": monthly_data
+        "start": sorted_months[0],
+        "end": sorted_months[-1],
+        "unit": "kwh",
+        "total": round(total_kwh, 2),
+        "values": values
     }
 
 
