@@ -328,6 +328,34 @@ def get_enovos_offers() -> dict:
     }
 
 
+@mcp.tool(annotations={"readOnlyHint": True})
+def get_advice(customer_id: str) -> dict:
+    """Get advice workflow for a customer asking how to save money.
+    
+    CALL THIS FIRST when customer asks: how to save, reduce bill, optimize, best offer, etc.
+    
+    Args:
+        customer_id: Required. The customer's unique identifier
+    """
+    return {
+        "workflow": [
+            "1. Call get_customer_profile(customer_id) to get profile_type",
+            "2. Call get_customer_contract(customer_id) to get current contract",
+            "3. Call get_enovos_offers() to see all offers with ideal_for field",
+            "4. Compare: find offer where ideal_for == profile_type",
+            "5. If current contract != recommended offer → suggest switching",
+            "6. If current contract == recommended offer → give generic tips"
+        ],
+        "generic_tips": [
+            "Shift consumption to off-peak hours",
+            "Install smart thermostat",
+            "Check for energy-efficient appliances",
+            "Consider solar panels"
+        ],
+        "customer_id": customer_id
+    }
+
+
 if __name__ == "__main__":
     sse_app = mcp.sse_app()
     
@@ -355,6 +383,7 @@ if __name__ == "__main__":
     print("  - get_customer_profile")
     print("  - get_customer_contract")
     print("  - get_enovos_offers")
+    print("  - get_advice")
     print("=" * 50)
     
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
