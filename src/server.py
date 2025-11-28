@@ -300,10 +300,12 @@ def get_enovos_offers() -> dict:
             },
             {
                 "name": "Energy Sharing",
-                "price_eur_kwh": 0.22,
-                "type": "community",
+                "base_price_eur_kwh": 0.25,
+                "network_fee_savings": "up to 10%",
+                "type": "p2p",
                 "ideal_for": "office",
-                "description": "Share energy within building/community"
+                "description": "Share with a local partner, save up to 10% on network fees",
+                "how_it_works": "Find partner nearby → share production → both reduce grid fees"
             },
             {
                 "name": "Nova Naturstroum",
@@ -344,6 +346,46 @@ def get_advice(customer_id: str) -> dict:
     }
 
 
+@mcp.tool(annotations={"readOnlyHint": True})
+def find_sharing_partners(customer_id: str) -> dict:
+    """Find potential Energy Sharing partners near the customer.
+    
+    Energy Sharing allows customers to share energy with nearby partners
+    and save up to 10% on network fees.
+    
+    Args:
+        customer_id: Required. The customer's unique identifier
+    """
+    # Mock data - in reality would query geolocation database
+    return {
+        "customer_id": customer_id,
+        "potential_partners": [
+            {
+                "id": "P001",
+                "type": "Neighboring building",
+                "distance_m": 50,
+                "potential_savings_percent": 8,
+                "available_capacity_kwh": 2500
+            },
+            {
+                "id": "P002", 
+                "type": "Office complex",
+                "distance_m": 120,
+                "potential_savings_percent": 6,
+                "available_capacity_kwh": 5000
+            },
+            {
+                "id": "P003",
+                "type": "Residential block",
+                "distance_m": 200,
+                "potential_savings_percent": 4,
+                "available_capacity_kwh": 1800
+            }
+        ],
+        "next_step": "Contact Enovos to set up Energy Sharing partnership"
+    }
+
+
 if __name__ == "__main__":
     sse_app = mcp.sse_app()
     
@@ -372,6 +414,7 @@ if __name__ == "__main__":
     print("  - get_customer_contract")
     print("  - get_enovos_offers")
     print("  - get_advice")
+    print("  - find_sharing_partners")
     print("=" * 50)
     
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
