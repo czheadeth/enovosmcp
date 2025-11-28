@@ -397,10 +397,33 @@ def get_customer_contract(customer_id: str) -> dict:
     """
     USE THIS TOOL to get the customer's CURRENT contract.
     
-    After getting the contract, you should:
-    1. Call get_customer_profile() to understand their consumption pattern
-    2. Call get_enovos_offers() to see all available offers
-    3. Compare and recommend if a different offer would be better
+    ⚠️ IMPORTANT WORKFLOW - When user asks about contract suitability:
+    
+    You MUST follow these steps in order:
+    
+    STEP 1: Call get_customer_profile(customer_id) FIRST
+            → Look at hourly_profile: which hours have highest values?
+            → Look at ratio_winter_summer: above 2.0? below 0.7? around 1.0?
+    
+    STEP 2: Call get_customer_contract(customer_id)
+            → Get their current contract name
+    
+    STEP 3: Call get_enovos_offers()
+            → Get all available offers with "ideal_for" field
+    
+    STEP 4: MATCH profile to best offer:
+            - If hourly_profile peaks at night (hours 19-5 are highest) AND ratio ~1.0-1.3
+              → Best offer: "Naturstrom Drive" (EV owner)
+            - If hourly_profile peaks during day (hours 9-17 are highest)
+              → Best offer: "Energy Sharing" (office/business)
+            - If ratio_winter_summer > 2.0
+              → Best offer: "Naturstrom Fix" (heat pump)
+            - Otherwise (standard residential)
+              → Best offer: "PV + Electris"
+    
+    STEP 5: COMPARE current contract vs best offer
+            → If different: recommend switching with estimated savings
+            → If same: confirm they have the right contract
     
     Args:
         customer_id: Customer ID (e.g., "00001", "00042")
@@ -431,18 +454,30 @@ def get_enovos_offers() -> dict:
     """
     USE THIS TOOL to get ALL available Enovos energy offers.
     
-    Each offer has an "ideal_for" field describing the optimal customer profile.
-    Compare with the customer's profile (from get_customer_profile) to recommend
-    the best offer:
+    ⚠️ ALWAYS call get_customer_profile() BEFORE this tool to know the customer's pattern.
     
-    MATCHING GUIDE:
-    - Night peak (22h-6h) + ratio ~1.2 → Naturstrom Drive (EV owners)
-    - Day peak (9h-17h) → Energy Sharing (offices/businesses)
-    - ratio_winter_summer > 2.5 → Naturstrom Fix (heat pumps, stable price)
-    - Standard residential → PV + Electris (solar self-consumption)
+    HOW TO MATCH offers to customer profile:
+    
+    Look at the customer's hourly_profile (24 values, index 0=midnight, 23=11pm):
+    
+    1. NIGHT PEAK (values at hours 19,20,21,22,23,0,1,2,3,4,5 are HIGH):
+       → Recommend: "Naturstrom Drive" - saves 40% on night consumption
+       → Typical for: EV owners who charge at night
+    
+    2. DAY PEAK (values at hours 9,10,11,12,13,14,15,16,17 are HIGH):
+       → Recommend: "Energy Sharing" - optimized for business hours
+       → Typical for: Offices, shops, remote workers
+    
+    3. HIGH SEASONALITY (ratio_winter_summer > 2.0):
+       → Recommend: "Naturstrom Fix" - stable price for high winter usage
+       → Typical for: Heat pumps, electric heating
+    
+    4. STANDARD PATTERN (morning + evening peaks, ratio ~1.3):
+       → Recommend: "PV + Electris" - solar self-consumption
+       → Typical for: Families, standard residential
     
     Returns:
-        List of all Enovos offers with prices and ideal customer profiles
+        List of all Enovos offers with prices, ideal_for field, and benefits
     """
     return {
         "offers": [
