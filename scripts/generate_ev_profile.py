@@ -7,33 +7,35 @@ from datetime import datetime, timedelta
 
 OUTPUT_FILE = "src/data/LU_ENO_DELPHI_LU_virtual_ind_00000.csv"
 
-# Profil horaire EV MARQUÉ
-# Rentre du boulot 18h-19h, branche la voiture, charge jusqu'à ~3h
+# Profil horaire EV RÉALISTE (valeurs en kWh par 15 minutes)
+# Wallbox 7kW = 1.75 kWh par 15min
+# Base foyer = 0.1-0.15 kWh par 15min
+# Total cible: ~7000 kWh/an = ~19 kWh/jour
 HOURLY_PROFILE = {
-    0: 9.0,   # Charge en cours
-    1: 9.0,   # Charge en cours
-    2: 8.5,   # Charge en cours
-    3: 4.0,   # Fin de charge
-    4: 1.2,   # Base
-    5: 1.2,   # Base
-    6: 1.5,   # Réveil
-    7: 2.0,   # Petit-déj, prépa
-    8: 1.0,   # Parti au travail
-    9: 0.8,   # Personne - base
-    10: 0.8,
-    11: 0.8,
-    12: 0.8,
-    13: 0.8,
-    14: 0.8,
-    15: 0.8,
-    16: 0.8,
-    17: 1.0,  # Base
-    18: 2.5,  # Retour maison
-    19: 9.5,  # BRANCHE LA VOITURE - début charge
-    20: 10.0, # Charge pleine puissance
-    21: 10.0, # Charge pleine puissance
-    22: 9.5,  # Charge
-    23: 9.0,  # Charge
+    0: 1.7,    # Charge EV en cours
+    1: 1.7,    # Charge EV en cours
+    2: 1.6,    # Charge EV fin
+    3: 0.15,   # Base (charge terminée)
+    4: 0.12,   # Base
+    5: 0.12,   # Base
+    6: 0.25,   # Réveil, café
+    7: 0.35,   # Petit-déj, préparation
+    8: 0.15,   # Parti au travail
+    9: 0.10,   # Personne - base frigo/veille
+    10: 0.10,
+    11: 0.10,
+    12: 0.10,
+    13: 0.10,
+    14: 0.10,
+    15: 0.10,
+    16: 0.12,
+    17: 0.20,  # Retour progressif
+    18: 0.40,  # Retour maison, cuisine
+    19: 1.80,  # BRANCHE LA VOITURE - début charge
+    20: 1.75,  # Charge pleine puissance (7kW)
+    21: 1.75,  # Charge pleine puissance
+    22: 1.75,  # Charge
+    23: 1.70,  # Charge
 }
 
 # Facteur saisonnier (1.0 = été, légèrement plus en hiver)
