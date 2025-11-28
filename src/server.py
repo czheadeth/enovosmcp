@@ -278,6 +278,56 @@ def get_customer_contract(customer_id: str) -> dict:
     }
 
 
+@mcp.tool(annotations={"readOnlyHint": True})
+def get_enovos_offers() -> dict:
+    """Get all available Enovos energy offers.
+    
+    Use this to see all offers and compare with customer's current contract.
+    Each offer has an 'ideal_for' field matching profile types from get_customer_profile.
+    """
+    return {
+        "offers": [
+            {
+                "name": "Naturstrom Fix",
+                "price_eur_kwh": 0.25,
+                "type": "fixed",
+                "ideal_for": "heat_pump",
+                "description": "Fixed price, 100% renewable, price security"
+            },
+            {
+                "name": "Naturstrom Drive",
+                "price_night_eur_kwh": 0.15,
+                "price_day_eur_kwh": 0.28,
+                "night_hours": "22:00-06:00",
+                "type": "dual",
+                "ideal_for": "ev",
+                "description": "Optimized for EV charging, -40% at night"
+            },
+            {
+                "name": "Energy Sharing",
+                "price_eur_kwh": 0.22,
+                "type": "community",
+                "ideal_for": "office",
+                "description": "Share energy within building/community"
+            },
+            {
+                "name": "Nova Naturstroum",
+                "price_eur_kwh": 0.23,
+                "type": "green",
+                "ideal_for": "residential",
+                "description": "100% local renewable energy"
+            },
+            {
+                "name": "Business Premium",
+                "price_eur_kwh": "custom",
+                "type": "b2b",
+                "ideal_for": "industry",
+                "description": "Tailored solution for large consumers"
+            }
+        ]
+    }
+
+
 if __name__ == "__main__":
     sse_app = mcp.sse_app()
     
@@ -304,6 +354,7 @@ if __name__ == "__main__":
     print("  - get_consumption_monthly")
     print("  - get_customer_profile")
     print("  - get_customer_contract")
+    print("  - get_enovos_offers")
     print("=" * 50)
     
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
