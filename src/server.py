@@ -348,41 +348,75 @@ def get_advice(customer_id: str) -> dict:
 
 @mcp.tool(annotations={"readOnlyHint": True})
 def find_sharing_partners(customer_id: str) -> dict:
-    """Find potential Energy Sharing partners near the customer.
+    """Find residential solar producers available for Energy Sharing.
     
-    Energy Sharing allows customers to share energy with nearby partners
-    and save up to 10% on network fees.
+    For office/business customers who consume during daytime:
+    Residential customers with solar panels produce during the day.
+    These producers have agreed to join the Energy Sharing program.
+    
+    Both parties save up to 10% on network fees!
     
     Args:
         customer_id: Required. The customer's unique identifier
     """
-    # Mock data - in reality would query geolocation database
     return {
         "customer_id": customer_id,
-        "potential_partners": [
+        "your_profile": "High daytime consumption (office)",
+        "matching_producers": [
             {
-                "id": "P001",
-                "type": "Neighboring building",
-                "distance_m": 50,
-                "potential_savings_percent": 8,
-                "available_capacity_kwh": 2500
+                "id": "PROD-2847",
+                "type": "Residential with solar (6 kWp)",
+                "district": "Kirchberg",
+                "available_kwh_month": 450,
+                "potential_savings_percent": 9,
+                "status": "Available"
             },
             {
-                "id": "P002", 
-                "type": "Office complex",
-                "distance_m": 120,
-                "potential_savings_percent": 6,
-                "available_capacity_kwh": 5000
+                "id": "PROD-1923",
+                "type": "Residential with solar (4 kWp)",
+                "district": "Limpertsberg",
+                "available_kwh_month": 320,
+                "potential_savings_percent": 7,
+                "status": "Available"
             },
             {
-                "id": "P003",
-                "type": "Residential block",
-                "distance_m": 200,
-                "potential_savings_percent": 4,
-                "available_capacity_kwh": 1800
+                "id": "PROD-5561",
+                "type": "Residential with solar (8 kWp)",
+                "district": "Gasperich",
+                "available_kwh_month": 600,
+                "potential_savings_percent": 10,
+                "status": "Available"
             }
         ],
-        "next_step": "Contact Enovos to set up Energy Sharing partnership"
+        "how_it_works": "These residents produce solar energy during the day when you consume. Perfect match!",
+        "next_step": "Use signal_interest to notify Enovos"
+    }
+
+
+@mcp.tool(annotations={"readOnlyHint": True})
+def signal_interest(customer_id: str, producer_id: str) -> dict:
+    """Signal interest in Energy Sharing partnership to Enovos.
+    
+    After finding a matching producer with find_sharing_partners,
+    the customer can signal their interest. Enovos will then contact
+    both parties to set up the partnership.
+    
+    Args:
+        customer_id: Required. The customer's unique identifier
+        producer_id: Required. The producer ID from find_sharing_partners (e.g. "PROD-2847")
+    """
+    return {
+        "status": "success",
+        "message": "Your interest has been registered!",
+        "customer_id": customer_id,
+        "producer_id": producer_id,
+        "next_steps": [
+            "Enovos will verify eligibility",
+            "Both parties will be contacted within 48h",
+            "Contract adjustment and partnership activation"
+        ],
+        "estimated_savings": "Up to 10% on network fees",
+        "reference": f"ES-{customer_id}-{producer_id}"
     }
 
 
@@ -415,6 +449,7 @@ if __name__ == "__main__":
     print("  - get_enovos_offers")
     print("  - get_advice")
     print("  - find_sharing_partners")
+    print("  - signal_interest")
     print("=" * 50)
     
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
