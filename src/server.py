@@ -74,25 +74,25 @@ async def health(request):
 @mcp.tool(annotations={"readOnlyHint": True})
 def get_consumption_hourly(customer_id: str, date_from: str, date_to: str) -> dict:
     """
-    UTILISE CET OUTIL quand l'utilisateur demande:
-    - consommation détaillée heure par heure
-    - analyse d'une journée spécifique
-    - pic de consommation
-    - consommation pendant certaines heures
+    USE THIS TOOL when user asks for:
+    - Hourly consumption details
+    - Specific day analysis
+    - Peak consumption times
+    - Consumption during specific hours
     
-    Retourne la consommation moyenne par heure en kWh (24 valeurs par jour).
+    Returns average consumption per hour in kWh (24 values per day).
     
-    IMPORTANT: Pour UNE SEULE journée, utilise la MEME date pour date_from et date_to.
-    Exemple: journée du 15 mars → date_from="2023-03-15", date_to="2023-03-15"
+    IMPORTANT: For a SINGLE day, use the SAME date for date_from and date_to.
+    Example: March 15th → date_from="2023-03-15", date_to="2023-03-15"
     
     Args:
-        customer_id: Identifiant client (ex: "00001", "00042", "00088")
-        date_from: Date de début YYYY-MM-DD (incluse)
-        date_to: Date de fin YYYY-MM-DD (incluse) - MEME date que date_from pour 1 jour
+        customer_id: Customer ID (e.g., "00001", "00042", "00088")
+        date_from: Start date YYYY-MM-DD (inclusive)
+        date_to: End date YYYY-MM-DD (inclusive) - SAME as date_from for 1 day
     
     Returns:
-        Format compact: granularity, start, end, unit, total, values[]
-        Maximum 7 jours.
+        Compact format: granularity, start, end, unit, total, values[]
+        Maximum 7 days.
     """
     # Validate date range (max 7 days)
     try:
@@ -147,26 +147,26 @@ def get_consumption_hourly(customer_id: str, date_from: str, date_to: str) -> di
 @mcp.tool(annotations={"readOnlyHint": True})
 def get_consumption_daily(customer_id: str, date_from: str, date_to: str) -> dict:
     """
-    UTILISE CET OUTIL quand l'utilisateur demande:
-    - consommation par jour
-    - consommation d'une semaine
-    - consommation d'un mois spécifique
-    - comparaison entre jours
+    USE THIS TOOL when user asks for:
+    - Daily consumption
+    - Weekly consumption
+    - Monthly consumption for a specific month
+    - Day-to-day comparison
     
-    Retourne la consommation totale par jour en kWh.
+    Returns total consumption per day in kWh.
     
-    IMPORTANT: Les deux dates sont INCLUSIVES.
-    Exemple semaine: date_from="2023-03-01", date_to="2023-03-07" → 7 jours
-    Exemple mois: date_from="2023-03-01", date_to="2023-03-31" → 31 jours
+    IMPORTANT: Both dates are INCLUSIVE.
+    Example week: date_from="2023-03-01", date_to="2023-03-07" → 7 days
+    Example month: date_from="2023-03-01", date_to="2023-03-31" → 31 days
     
     Args:
-        customer_id: Identifiant client (ex: "00001", "00042", "00088")
-        date_from: Date de début YYYY-MM-DD (incluse)
-        date_to: Date de fin YYYY-MM-DD (incluse)
+        customer_id: Customer ID (e.g., "00001", "00042", "00088")
+        date_from: Start date YYYY-MM-DD (inclusive)
+        date_to: End date YYYY-MM-DD (inclusive)
     
     Returns:
-        Format compact: granularity, start, end, unit, total, values[]
-        Maximum 90 jours.
+        Compact format: granularity, start, end, unit, total, values[]
+        Maximum 90 days.
     """
     # Validate date range (max 90 days)
     try:
@@ -229,25 +229,25 @@ def get_consumption_daily(customer_id: str, date_from: str, date_to: str) -> dic
 @mcp.tool(annotations={"readOnlyHint": True})
 def get_consumption_monthly(customer_id: str, date_from: str, date_to: str) -> dict:
     """
-    UTILISE CET OUTIL quand l'utilisateur demande:
-    - consommation mensuelle
-    - consommation sur une année
-    - tendance sur plusieurs mois
-    - comparaison entre mois
+    USE THIS TOOL when user asks for:
+    - Monthly consumption
+    - Yearly consumption
+    - Multi-month trends
+    - Month-to-month comparison
     
-    Retourne la consommation totale par mois en kWh.
+    Returns total consumption per month in kWh.
     
-    IMPORTANT: Les deux mois sont INCLUSIFS.
-    Exemple année: date_from="2023-01", date_to="2023-12" → 12 mois
-    Exemple trimestre: date_from="2023-01", date_to="2023-03" → 3 mois
+    IMPORTANT: Both months are INCLUSIVE.
+    Example year: date_from="2023-01", date_to="2023-12" → 12 months
+    Example quarter: date_from="2023-01", date_to="2023-03" → 3 months
     
     Args:
-        customer_id: Identifiant client (ex: "00001", "00042", "00088")
-        date_from: Mois de début YYYY-MM (inclus)
-        date_to: Mois de fin YYYY-MM (inclus)
+        customer_id: Customer ID (e.g., "00001", "00042", "00088")
+        date_from: Start month YYYY-MM (inclusive)
+        date_to: End month YYYY-MM (inclusive)
     
     Returns:
-        Format compact: granularity, start, end, unit, total, values[]
+        Compact format: granularity, start, end, unit, total, values[]
     """
     # Parse monthly dates
     try:
@@ -317,24 +317,30 @@ def get_consumption_monthly(customer_id: str, date_from: str, date_to: str) -> d
 @mcp.tool(annotations={"readOnlyHint": True})
 def get_customer_profile(customer_id: str) -> dict:
     """
-    UTILISE CET OUTIL quand l'utilisateur demande:
-    - son profil de consommation
-    - son type de consommateur
-    - analyse de son comportement énergétique
-    - sa saisonnalité (hiver vs été)
+    USE THIS TOOL when user asks for:
+    - Their consumption profile
+    - Their consumer type
+    - Energy behavior analysis
+    - Seasonality (winter vs summer)
     
-    Retourne le profil horaire moyen (24h) et le ratio saisonnalité hiver/été.
+    Returns the average hourly profile (24h) and winter/summer seasonality ratio.
     
-    Interprétation du ratio_winter_summer:
-    - > 2.0 = chauffage électrique probable (PAC)
-    - < 0.7 = climatisation probable
-    - ~1.0 = consommation stable toute l'année
+    HOW TO INTERPRET the results:
+    - hourly_profile: 24 values (index 0 = midnight, index 23 = 11pm)
+      - High values at night (22-6h) = likely EV charging
+      - High values during day (9-17h) = likely office/business
+      - Peaks at 7-9h and 18-21h = typical residential
+    
+    - ratio_winter_summer:
+      - > 2.0 = electric heating (heat pump)
+      - < 0.7 = air conditioning
+      - ~1.0-1.3 = stable consumption (EV, standard residential)
     
     Args:
-        customer_id: Identifiant client (ex: "00001", "00042")
+        customer_id: Customer ID (e.g., "00001", "00042")
     
     Returns:
-        Format compact: customer_id, hourly_profile (24 valeurs), ratio_winter_summer
+        customer_id, hourly_profile (24 values), ratio_winter_summer, total_kwh
     """
     csv_path = get_csv_path(customer_id)
     
@@ -386,6 +392,98 @@ def get_customer_profile(customer_id: str) -> dict:
     }
 
 
+@mcp.tool(annotations={"readOnlyHint": True})
+def get_customer_contract(customer_id: str) -> dict:
+    """
+    USE THIS TOOL to get the customer's CURRENT contract.
+    
+    After getting the contract, you should:
+    1. Call get_customer_profile() to understand their consumption pattern
+    2. Call get_enovos_offers() to see all available offers
+    3. Compare and recommend if a different offer would be better
+    
+    Args:
+        customer_id: Customer ID (e.g., "00001", "00042")
+    
+    Returns:
+        Current contract details: name, price, start_date
+    """
+    # Check if customer exists
+    csv_path = get_csv_path(customer_id)
+    if not csv_path.exists():
+        return {
+            "error": f"Customer {customer_id} not found.",
+            "hint": "Customer ID should be a number between 00001 and 09831"
+        }
+    
+    # Default contract for all customers (demo)
+    return {
+        "customer_id": customer_id.zfill(5),
+        "current_contract": "Naturstrom Fix",
+        "price_kwh_eur": 0.25,
+        "contract_start": "2022-01-01",
+        "description": "Fixed price green energy contract"
+    }
+
+
+@mcp.tool(annotations={"readOnlyHint": True})
+def get_enovos_offers() -> dict:
+    """
+    USE THIS TOOL to get ALL available Enovos energy offers.
+    
+    Each offer has an "ideal_for" field describing the optimal customer profile.
+    Compare with the customer's profile (from get_customer_profile) to recommend
+    the best offer:
+    
+    MATCHING GUIDE:
+    - Night peak (22h-6h) + ratio ~1.2 → Naturstrom Drive (EV owners)
+    - Day peak (9h-17h) → Energy Sharing (offices/businesses)
+    - ratio_winter_summer > 2.5 → Naturstrom Fix (heat pumps, stable price)
+    - Standard residential → PV + Electris (solar self-consumption)
+    
+    Returns:
+        List of all Enovos offers with prices and ideal customer profiles
+    """
+    return {
+        "offers": [
+            {
+                "name": "Naturstrom Fix",
+                "description": "Fixed price, 100% green energy from renewable sources",
+                "price_kwh_eur": 0.25,
+                "price_type": "fixed",
+                "ideal_for": "Stable consumption, heat pumps (high winter usage), customers wanting price security",
+                "benefits": ["Price stability", "100% renewable", "No surprises"]
+            },
+            {
+                "name": "Naturstrom Drive",
+                "description": "Optimized for electric vehicle owners with advantageous night rates",
+                "price_kwh_night_eur": 0.15,
+                "price_kwh_day_eur": 0.28,
+                "night_hours": "22:00-06:00",
+                "price_type": "dual_tariff",
+                "ideal_for": "EV owners charging at night, high night consumption (22h-6h peak)",
+                "benefits": ["40% cheaper at night", "Perfect for EV charging", "100% renewable"]
+            },
+            {
+                "name": "Energy Sharing",
+                "description": "Share energy within your community or building",
+                "price_kwh_eur": 0.22,
+                "price_type": "community",
+                "ideal_for": "Offices, businesses, buildings with daytime consumption (9h-17h peak)",
+                "benefits": ["Lower rates", "Community benefits", "Daytime optimization"]
+            },
+            {
+                "name": "PV + Electris",
+                "description": "Solar self-consumption with grid backup, sell surplus",
+                "price_kwh_eur": 0.20,
+                "price_type": "prosumer",
+                "ideal_for": "Residential homes with roof potential, standard consumption pattern",
+                "benefits": ["Produce your own energy", "Sell surplus", "Reduce bills up to 70%"]
+            }
+        ]
+    }
+
+
 if __name__ == "__main__":
     # Create the Starlette app with SSE MCP and health check
     sse_app = mcp.sse_app()
@@ -411,19 +509,23 @@ if __name__ == "__main__":
     )
     
     print("=" * 60)
-    print("Enovos MCP Server v3.0 - Load Curve Data + Profiles")
+    print("Enovos MCP Server v4.0 - Full Customer Intelligence")
     print("=" * 60)
     print("Endpoints:")
     print("  - Health: http://0.0.0.0:8000/")
     print("  - MCP SSE: http://0.0.0.0:8000/mcp/sse")
     print("")
-    print("Tools consommation:")
+    print("Consumption tools:")
     print("  - get_consumption_hourly(customer_id, date_from, date_to)")
     print("  - get_consumption_daily(customer_id, date_from, date_to)")
     print("  - get_consumption_monthly(customer_id, date_from, date_to)")
     print("")
-    print("Tools profils:")
-    print("  - get_customer_profile(customer_id) → profil 24h + saisonnalité")
+    print("Profile tools:")
+    print("  - get_customer_profile(customer_id)")
+    print("")
+    print("Contract tools:")
+    print("  - get_customer_contract(customer_id)")
+    print("  - get_enovos_offers()")
     print("=" * 60)
     
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info", proxy_headers=True, forwarded_allow_ips="*")
