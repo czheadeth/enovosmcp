@@ -229,9 +229,6 @@ def get_customer_profile(customer_id: str) -> dict:
     summer_avg = sum(summer_vals) / len(summer_vals) if summer_vals else 1
     ratio = round(winter_avg / summer_avg, 2) if summer_avg > 0 else 1.0
     
-    # Calculate annual consumption (data is ~2 years)
-    annual_kwh = total_kwh / 2
-    
     # Classify profile
     night_hours = [19, 20, 21, 22, 23, 0, 1, 2, 3, 4, 5]
     day_hours = [9, 10, 11, 12, 13, 14, 15, 16, 17]
@@ -239,9 +236,7 @@ def get_customer_profile(customer_id: str) -> dict:
     night_avg = sum(hourly_profile[h] for h in night_hours) / len(night_hours)
     day_avg = sum(hourly_profile[h] for h in day_hours) / len(day_hours)
     
-    if annual_kwh > 50000:
-        profile_type = "industry"
-    elif ratio > 2.0:
+    if ratio > 2.0:
         profile_type = "heat_pump"
     elif night_avg > day_avg * 1.5:
         profile_type = "ev"
@@ -316,13 +311,6 @@ def get_enovos_offers() -> dict:
                 "type": "green",
                 "ideal_for": "residential",
                 "description": "100% local renewable energy"
-            },
-            {
-                "name": "Business Premium",
-                "price_eur_kwh": "custom",
-                "type": "b2b",
-                "ideal_for": "industry",
-                "description": "Tailored solution for large consumers"
             }
         ]
     }
