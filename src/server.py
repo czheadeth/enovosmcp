@@ -358,9 +358,17 @@ def get_enovos_offers() -> dict:
 
 @mcp.tool(annotations={"readOnlyHint": True})
 def get_advice(customer_id: str) -> dict:
-    """Get advice workflow for a customer asking how to save money.
+    """Get personalized advice and recommendations for a customer.
     
-    CALL THIS FIRST when customer asks: how to save, reduce bill, optimize, best offer, etc.
+    ⚠️ CALL THIS FIRST when user says ANY of these:
+    - "help me", "give me advice", "specific advice", "tips"
+    - "what should I do", "recommend", "suggestion"  
+    - "save money", "reduce bill", "lower cost", "too expensive"
+    - "is my contract right", "better offer", "switch contract"
+    - "how can I", "what can I do", "any ideas"
+    - "this is too much", "worried about", "concerned"
+    
+    This returns the workflow to analyze profile, contract, and find best offer.
     
     Args:
         customer_id: Required. The customer's unique identifier
