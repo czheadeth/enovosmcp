@@ -7,182 +7,112 @@ Service MCP (Model Context Protocol) pour Enovos permettant d'exposer des outils
 - Python 3.10 ou supérieur
 - pip (gestionnaire de paquets Python)
 
-## Installation locale
+## Installation
 
-1. **Installer les dépendances**
+1. **Installer Python** (si pas déjà installé)
+   - Télécharger depuis [python.org](https://www.python.org/downloads/)
+   - Lors de l'installation, cocher "Add Python to PATH"
+
+2. **Installer les dépendances**
    ```bash
    pip install -r requirements.txt
    ```
 
-2. **Lancer le serveur**
-   ```bash
-   python -m src.server
-   ```
+## Utilisation
 
-## Tools disponibles
+### Lancer le serveur MCP
+
+```bash
+python src/server.py
+```
+
+Le serveur expose 4 outils (tools) :
 
 | Tool | Description |
 |------|-------------|
 | `get_customer_consumption` | Récupère la consommation énergétique d'un client |
 | `get_customer_contract` | Récupère les détails du contrat d'un client |
 | `get_customer_info` | Récupère les informations de base d'un client |
+| `list_customers` | Liste tous les clients disponibles |
 
-**Clients de test** : `C001`, `C002`, `C003`
+### Données mockées disponibles
 
----
-
-## Déploiement sur AWS EC2
-
-### 1. Créer une instance EC2
-
-1. AWS Console → EC2 → **Lancer une instance**
-2. **AMI** : Amazon Linux 2023
-3. **Type** : t2.micro ou t3.micro
-4. **Paire de clés** : Créer une nouvelle (RSA, .pem)
-5. **Groupe de sécurité** : Ouvrir les ports 22 (SSH), 8000 (HTTP)
-
-### 2. Se connecter en SSH
-
-```bash
-ssh -i votre-cle.pem ec2-user@IP_PUBLIQUE_EC2
-```
-
-### 3. Installer le serveur
-
-```bash
-# Installer Python 3.11
-sudo yum update -y
-sudo yum install -y python3.11 python3.11-pip git
-
-# Cloner le repo
-git clone https://github.com/czheadeth/enovosmcp.git
-cd enovosmcp
-
-# Installer les dépendances
-python3.11 -m pip install -r requirements.txt
-
-# Lancer le serveur en arrière-plan
-nohup python3.11 -m src.server > server.log 2>&1 &
-
-# Vérifier que ça tourne
-curl http://localhost:8000/
-```
-
-### 4. Installer ngrok (pour HTTPS)
-
-ChatGPT exige HTTPS. ngrok fournit un tunnel HTTPS gratuit.
-
-```bash
-# Télécharger ngrok
-curl -O https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
-tar xzf ngrok-v3-stable-linux-amd64.tgz
-
-# Configurer le token (récupérer sur https://dashboard.ngrok.com/get-started/your-authtoken)
-./ngrok config add-authtoken VOTRE_TOKEN_NGROK
-
-# Lancer ngrok
-./ngrok http 8000
-```
-
-Vous obtiendrez une URL HTTPS comme : `https://xxxx.ngrok-free.app`
-
-### 5. Garder ngrok actif après déconnexion
-
-```bash
-# Installer screen
-sudo yum install screen -y
-
-# Lancer ngrok dans un screen
-screen -S ngrok
-./ngrok http 8000
-
-# Détacher le screen : Ctrl+A puis D
-# Revenir au screen : screen -r ngrok
-```
-
----
+Clients de test : `C001`, `C002`, `C003`
 
 ## Connexion à ChatGPT
 
-### 1. Activer le mode développeur
+### Option A : Mode local via Cursor
 
-1. ChatGPT → **Settings** → **Applis et connecteurs**
-2. **Advanced** → Activer **Developer mode**
+Cursor supporte MCP nativement. Ajoutez cette configuration dans vos paramètres MCP de Cursor :
 
-### 2. Ajouter le connecteur
+```json
+{
+  "mcpServers": {
+    "enovos": {
+      "command": "python",
+      "args": ["src/server.py"],
+      "cwd": "C:\\Users\\User\\Documents\\projects\\enovosmcp"
+    }
+  }
+}
+```
 
-1. Cliquer **Add connector**
-2. **Nom** : `Enovos`
-3. **URL du serveur MCP** :
+### Option B : Mode distant pour ChatGPT Web
+
+1. **Exposer le serveur via HTTPS**
+   - Option simple : utiliser [ngrok](https://ngrok.com/)
+   ```bash
+   ngrok http 8000
    ```
-   https://VOTRE_URL_NGROK/mcp/sse
-   ```
-4. **Authentification** : Aucune
-5. Cliquer **Créer**
+   - Option production : déployer sur un serveur cloud (AWS, Azure, etc.)
 
-### 3. Tester
+2. **Configurer ChatGPT**
+   - Accéder à **Settings** → **Connectors** → **Advanced** → **Developer mode**
+   - Activer le mode développeur
+   - Ajouter votre serveur MCP distant dans l'onglet "Connectors"
+   - URL : l'URL HTTPS fournie par ngrok ou votre serveur
 
-Dans une conversation ChatGPT :
-- "Quelle est ma consommation d'énergie ?"
-- "Montre-moi mon contrat"
-- "Quelles sont mes informations client ?"
-
----
+3. **Utiliser dans ChatGPT**
+   - Ouvrir une nouvelle conversation
+   - Sélectionner votre connecteur Enovos
+   - Demander par exemple : "Quelle est la consommation du client C001 ?"
 
 ## Structure du projet
 
 ```
 enovosmcp/
 ├── src/
+│   ├── __init__.py
 │   ├── server.py          # Serveur MCP principal
 │   ├── tools/
+│   │   ├── __init__.py
 │   │   ├── consumption.py # Tool consommation
 │   │   └── contract.py    # Tool contrat
 │   └── data/
+│       ├── __init__.py
 │       └── mock_data.py   # Données mockées
-├── Dockerfile             # Pour déploiement container
 ├── requirements.txt
 └── README.md
 ```
 
----
+## Exemple d'utilisation
+
+Une fois connecté, vous pouvez poser des questions comme :
+
+- "Liste tous les clients Enovos"
+- "Quelle est la consommation du client C001 ?"
+- "Montre-moi le contrat du client C002"
+- "Quelles sont les informations du client C003 ?"
 
 ## Développement
 
 ### Ajouter un nouveau tool
 
-```python
-@mcp.tool(annotations={"readOnlyHint": True})
-def mon_nouveau_tool(param: str = "default") -> dict:
-    """
-    UTILISE CET OUTIL quand l'utilisateur demande:
-    - quelque chose
-    - autre chose
-    
-    Description du retour.
-    """
-    return {"result": "data"}
-```
+1. Créer une fonction dans `src/tools/`
+2. Ajouter le décorateur `@mcp.tool()` dans `src/server.py`
+3. Documenter la fonction avec une docstring claire
 
 ### Connecter des données réelles
 
 Remplacer les fonctions dans `src/data/mock_data.py` par des appels à votre API Enovos réelle.
 
----
-
-## Commandes utiles EC2
-
-```bash
-# Voir les logs du serveur
-tail -f server.log
-
-# Redémarrer le serveur
-pkill -f "python3.11 -m src.server"
-nohup python3.11 -m src.server > server.log 2>&1 &
-
-# Mettre à jour le code
-cd ~/enovosmcp
-git pull
-pkill -f "python3.11 -m src.server"
-nohup python3.11 -m src.server > server.log 2>&1 &
-```

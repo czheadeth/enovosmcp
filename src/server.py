@@ -53,7 +53,7 @@ def get_consumption_hourly(customer_id: str, date_from: str, date_to: str) -> di
     """Get hourly consumption for a customer. Max 7 days.
     
     Args:
-        customer_id: Customer ID (e.g. "00001")
+        customer_id: Required. The customer's unique identifier
         date_from: Start date YYYY-MM-DD
         date_to: End date YYYY-MM-DD (same as date_from for 1 day)
     """
@@ -97,7 +97,7 @@ def get_consumption_daily(customer_id: str, date_from: str, date_to: str) -> dic
     """Get daily consumption for a customer. Max 90 days.
     
     Args:
-        customer_id: Customer ID (e.g. "00001")
+        customer_id: Required. The customer's unique identifier
         date_from: Start date YYYY-MM-DD
         date_to: End date YYYY-MM-DD
     """
@@ -144,7 +144,7 @@ def get_consumption_monthly(customer_id: str, date_from: str, date_to: str) -> d
     """Get monthly consumption for a customer.
     
     Args:
-        customer_id: Customer ID (e.g. "00001")
+        customer_id: Required. The customer's unique identifier
         date_from: Start month YYYY-MM
         date_to: End month YYYY-MM
     """
@@ -197,7 +197,7 @@ def get_customer_profile(customer_id: str) -> dict:
     """Get customer consumption profile: 24h pattern and winter/summer ratio.
     
     Args:
-        customer_id: Customer ID (e.g. "00001")
+        customer_id: Required. The customer's unique identifier
     """
     csv_path = get_csv_path(customer_id)
     if not csv_path.exists():
@@ -242,7 +242,7 @@ def get_customer_contract(customer_id: str) -> dict:
     """Get customer's current energy contract.
     
     Args:
-        customer_id: Customer ID (e.g. "00001")
+        customer_id: Required. The customer's unique identifier
     """
     csv_path = get_csv_path(customer_id)
     if not csv_path.exists():
