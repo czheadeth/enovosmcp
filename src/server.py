@@ -194,15 +194,10 @@ def get_consumption_monthly(customer_id: str, date_from: str, date_to: str) -> d
 
 @mcp.tool(annotations={"readOnlyHint": True})
 def get_customer_profile(customer_id: str) -> dict:
-    """Get customer consumption profile: hourly pattern (24h) and seasonality.
+    """Get customer consumption profile: 24h pattern and winter/summer ratio.
     
     Args:
         customer_id: Customer ID (e.g. "00001")
-    
-    Returns:
-        hourly_profile: 24 values (index 0 = midnight, 23 = 11pm)
-        ratio_winter_summer: winter avg / summer avg
-        total_kwh: total consumption
     """
     csv_path = get_csv_path(customer_id)
     if not csv_path.exists():
