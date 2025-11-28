@@ -193,6 +193,82 @@ def get_consumption_monthly(customer_id: str, date_from: str, date_to: str) -> d
 
 
 @mcp.tool(annotations={"readOnlyHint": True})
+def get_annual_summary(customer_id: str, year: int) -> dict:
+    """Get total annual consumption summary for a customer.
+    
+    USE THIS when user asks for yearly/annual consumption or full year data.
+    Returns total kWh, estimated cost, and comparison with previous year.
+    
+    Args:
+        customer_id: Required. The customer's unique identifier
+        year: The year to analyze (e.g. 2023)
+    """
+    # Load data for the requested year
+    date_from = f"{year}-01-01"
+    date_to = f"{year}-12-31"
+    
+    data = load_csv_data(customer_id, date_from, date_to)
+    if data is None:
+        return {"error": f"Customer {customer_id} not found"}
+    if data == "invalid_date":
+        return {"error": "Invalid year"}
+    if not data:
+        return {"error": f"No data for year {year}"}
+    
+    # Aggregate by month
+    hourly = defaultdict(list)
+    for d in data:
+        hourly[d['timestamp'][:13]].append(d['value_kwh'])
+    
+    daily = defaultdict(float)
+    for hour, vals in hourly.items():
+        daily[hour[:10]] += sum(vals) / len(vals)
+    
+    monthly = defaultdict(float)
+    for date, kwh in daily.items():
+        monthly[date[:7]] += kwh
+    
+    sorted_months = sorted(monthly.keys())
+    monthly_values = [round(monthly[m], 2) for m in sorted_months]
+    total_kwh = sum(monthly_values)
+    
+    # Try to get previous year for comparison
+    prev_year = year - 1
+    prev_data = load_csv_data(customer_id, f"{prev_year}-01-01", f"{prev_year}-12-31")
+    comparison = None
+    
+    if prev_data and prev_data != "invalid_date" and len(prev_data) > 0:
+        prev_hourly = defaultdict(list)
+        for d in prev_data:
+            prev_hourly[d['timestamp'][:13]].append(d['value_kwh'])
+        prev_daily = defaultdict(float)
+        for hour, vals in prev_hourly.items():
+            prev_daily[hour[:10]] += sum(vals) / len(vals)
+        prev_total = sum(prev_daily.values())
+        
+        if prev_total > 0:
+            change_pct = ((total_kwh - prev_total) / prev_total) * 100
+            comparison = {
+                "previous_year": prev_year,
+                "previous_kwh": round(prev_total, 0),
+                "change_percent": round(change_pct, 1)
+            }
+    
+    # Estimate cost (0.25 €/kWh default)
+    price_per_kwh = 0.25
+    estimated_cost = round(total_kwh * price_per_kwh, 2)
+    
+    return {
+        "customer_id": customer_id,
+        "year": year,
+        "total_kwh": round(total_kwh, 0),
+        "estimated_cost_eur": estimated_cost,
+        "monthly_breakdown": monthly_values,
+        "comparison": comparison
+    }
+
+
+@mcp.tool(annotations={"readOnlyHint": True})
 def get_customer_profile(customer_id: str) -> dict:
     """Get customer consumption profile with automatic classification.
     
@@ -490,6 +566,7 @@ if __name__ == "__main__":
     print("  - get_consumption_hourly")
     print("  - get_consumption_daily")
     print("  - get_consumption_monthly")
+    print("  - get_annual_summary")
     print("  - get_customer_profile")
     print("  - get_customer_contract")
     print("  - get_enovos_offers")

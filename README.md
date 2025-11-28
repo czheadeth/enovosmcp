@@ -105,7 +105,7 @@ Instead of letting AI speak about us, **we give AI the tools to speak FOR us**.
 
 ---
 
-## 🛠️ MCP Tools (10 Services)
+## 🛠️ MCP Tools (11 Services)
 
 ### 📊 Customer Data Access
 | Tool | Purpose |
@@ -113,6 +113,7 @@ Instead of letting AI speak about us, **we give AI the tools to speak FOR us**.
 | `get_consumption_hourly` | Detailed consumption analysis |
 | `get_consumption_daily` | Day-by-day trends |
 | `get_consumption_monthly` | Monthly overview |
+| `get_annual_summary` | **Full year summary** with cost estimate & comparison |
 
 ### 🧠 Intelligence Layer
 | Tool | Purpose |
