@@ -194,77 +194,39 @@ def get_consumption_monthly(customer_id: str, date_from: str, date_to: str) -> d
 
 @mcp.tool(annotations={"readOnlyHint": True})
 def get_annual_summary(customer_id: str, year: int) -> dict:
-    """Get total annual consumption summary for a customer.
+    """Get total annual consumption for a customer.
     
     USE THIS when user asks for yearly/annual consumption or full year data.
-    Returns total kWh, estimated cost, and comparison with previous year.
     
     Args:
         customer_id: Required. The customer's unique identifier
         year: The year to analyze (e.g. 2023)
     """
-    # Load data for the requested year
-    date_from = f"{year}-01-01"
-    date_to = f"{year}-12-31"
+    def calc_year_total(cid: str, y: int) -> float:
+        data = load_csv_data(cid, f"{y}-01-01", f"{y}-12-31")
+        if not data or data == "invalid_date":
+            return None
+        hourly = defaultdict(list)
+        for d in data:
+            hourly[d['timestamp'][:13]].append(d['value_kwh'])
+        daily_total = sum(sum(v)/len(v) for v in hourly.values())
+        return round(daily_total, 0)
     
-    data = load_csv_data(customer_id, date_from, date_to)
-    if data is None:
+    # Check customer exists
+    csv_path = get_csv_path(customer_id)
+    if not csv_path.exists():
         return {"error": f"Customer {customer_id} not found"}
-    if data == "invalid_date":
-        return {"error": "Invalid year"}
-    if not data:
+    
+    current = calc_year_total(customer_id, year)
+    previous = calc_year_total(customer_id, year - 1)
+    
+    if current is None:
         return {"error": f"No data for year {year}"}
-    
-    # Aggregate by month
-    hourly = defaultdict(list)
-    for d in data:
-        hourly[d['timestamp'][:13]].append(d['value_kwh'])
-    
-    daily = defaultdict(float)
-    for hour, vals in hourly.items():
-        daily[hour[:10]] += sum(vals) / len(vals)
-    
-    monthly = defaultdict(float)
-    for date, kwh in daily.items():
-        monthly[date[:7]] += kwh
-    
-    sorted_months = sorted(monthly.keys())
-    monthly_values = [round(monthly[m], 2) for m in sorted_months]
-    total_kwh = sum(monthly_values)
-    
-    # Try to get previous year for comparison
-    prev_year = year - 1
-    prev_data = load_csv_data(customer_id, f"{prev_year}-01-01", f"{prev_year}-12-31")
-    comparison = None
-    
-    if prev_data and prev_data != "invalid_date" and len(prev_data) > 0:
-        prev_hourly = defaultdict(list)
-        for d in prev_data:
-            prev_hourly[d['timestamp'][:13]].append(d['value_kwh'])
-        prev_daily = defaultdict(float)
-        for hour, vals in prev_hourly.items():
-            prev_daily[hour[:10]] += sum(vals) / len(vals)
-        prev_total = sum(prev_daily.values())
-        
-        if prev_total > 0:
-            change_pct = ((total_kwh - prev_total) / prev_total) * 100
-            comparison = {
-                "previous_year": prev_year,
-                "previous_kwh": round(prev_total, 0),
-                "change_percent": round(change_pct, 1)
-            }
-    
-    # Estimate cost (0.25 €/kWh default)
-    price_per_kwh = 0.25
-    estimated_cost = round(total_kwh * price_per_kwh, 2)
     
     return {
         "customer_id": customer_id,
-        "year": year,
-        "total_kwh": round(total_kwh, 0),
-        "estimated_cost_eur": estimated_cost,
-        "monthly_breakdown": monthly_values,
-        "comparison": comparison
+        f"{year}_kwh": current,
+        f"{year-1}_kwh": previous
     }
 
 
