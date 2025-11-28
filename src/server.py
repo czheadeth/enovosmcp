@@ -334,7 +334,7 @@ def get_advice(customer_id: str) -> dict:
             "3. Call get_enovos_offers() to see all offers with ideal_for field",
             "4. Compare: find offer where ideal_for == profile_type",
             "5. If current contract != recommended offer → suggest switching",
-            "6. If current contract == recommended offer → give generic tips"
+            "6. Also call get_challenges() to check ongoing energy challenges with rewards!"
         ],
         "generic_tips": [
             "Shift consumption to off-peak hours",
@@ -343,6 +343,52 @@ def get_advice(customer_id: str) -> dict:
             "Consider solar panels"
         ],
         "customer_id": customer_id
+    }
+
+
+@mcp.tool(annotations={"readOnlyHint": True})
+def get_challenges() -> dict:
+    """Get current energy saving challenges with rewards.
+    
+    Enovos organizes fun challenges to encourage energy savings.
+    Participants can win rewards!
+    
+    Check this when customer asks about saving energy or tips.
+    """
+    return {
+        "active_challenges": [
+            {
+                "name": "Peak Hour Challenge",
+                "period": "December 2024",
+                "goal": "Reduce consumption between 19:00-20:00",
+                "why": "This is peak demand hour - reducing helps the grid!",
+                "reward": "10€ bill credit",
+                "how_to_win": "Reduce your 19:00-20:00 consumption by 20% vs last month",
+                "participants": 1247,
+                "status": "active"
+            },
+            {
+                "name": "Weekend Warrior",
+                "period": "December 2024", 
+                "goal": "Shift laundry/dishwasher to weekends",
+                "why": "Lower demand on weekends = greener energy mix",
+                "reward": "5€ bill credit + Green Badge",
+                "how_to_win": "Run 80% of appliances on Sat-Sun",
+                "participants": 892,
+                "status": "active"
+            },
+            {
+                "name": "Night Owl Saver",
+                "period": "Coming January 2025",
+                "goal": "Shift consumption to 22:00-06:00",
+                "why": "Night = cheaper & greener electricity",
+                "reward": "15€ bill credit",
+                "how_to_win": "Move 30% of consumption to night hours",
+                "participants": 0,
+                "status": "upcoming"
+            }
+        ],
+        "join_message": "Want to participate? Just start saving - we track automatically!"
     }
 
 
@@ -450,6 +496,7 @@ if __name__ == "__main__":
     print("  - get_advice")
     print("  - find_sharing_partners")
     print("  - signal_interest")
+    print("  - get_challenges")
     print("=" * 50)
     
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
