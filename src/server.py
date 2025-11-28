@@ -323,16 +323,24 @@ def get_customer_profile(customer_id: str) -> dict:
     - Energy behavior analysis
     - Seasonality (winter vs summer)
     
-    Returns the average hourly profile (24h) and winter/summer seasonality ratio.
+    ⚠️ ALSO USE THIS as FIRST STEP when user asks about:
+    - Saving money / économiser
+    - Reducing their bill / réduire la facture
+    - Best offer for them / meilleure offre
+    - Contract optimization
+    - Whether their contract is suitable
+    
+    → After getting profile, you MUST also call:
+      get_customer_contract() then get_enovos_offers() to give a complete answer!
     
     HOW TO INTERPRET the results:
     - hourly_profile: 24 values (index 0 = midnight, index 23 = 11pm)
-      - High values at night (22-6h) = likely EV charging
-      - High values during day (9-17h) = likely office/business
-      - Peaks at 7-9h and 18-21h = typical residential
+      - High values at night (19-5h) = likely EV charging → Naturstrom Drive
+      - High values during day (9-17h) = likely office → Energy Sharing
+      - Peaks at 7-9h and 18-21h = typical residential → PV + Electris
     
     - ratio_winter_summer:
-      - > 2.0 = electric heating (heat pump)
+      - > 2.0 = electric heating (heat pump) → Naturstrom Fix
       - < 0.7 = air conditioning
       - ~1.0-1.3 = stable consumption (EV, standard residential)
     
